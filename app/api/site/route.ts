@@ -1,21 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { analyzeHtml } from '@/lib/analyze';
 import { detectBuilders, siteVerdict } from '@/lib/site/fingerprints';
 import { analyzeText } from '@/lib/text/ensemble';
+import { recommendations } from '@/lib/recommend';
+import { jsonErr, jsonOk, normalizeUrl, rateLimit, readJson, clientIp, asString } from '@/lib/api';
 
 export const maxDuration = 30;
-
-function normalizeUrl(input: string): string {
-  let v = input.trim();
-  if (!v) throw new Error('Enter a URL first.');
-  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
-  const u = new URL(v);
-  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Only http(s) URLs are supported.');
-  if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(u.hostname)) {
-    throw new Error('Private network addresses are blocked.');
-  }
-  return u.toString();
-}
 
 async function fetchPage(url: string): Promise<{ html: string; headers: Record<string, string> }> {
   const ctrl = new AbortController();
@@ -26,11 +16,12 @@ async function fetchPage(url: string): Promise<{ html: string; headers: Record<s
       headers: { 'User-Agent': 'slopcheck/1.0 (+site-check)' },
       redirect: 'follow',
     });
+    // Re-validate the final host after redirects (SSRF via open redirect).
     const finalHost = new URL(res.url || url).hostname;
-    if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(finalHost)) {
+    if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|169\.254\.)/i.test(finalHost)) {
       throw new Error('Redirect led to a private address — blocked.');
     }
-    if (!res.ok) throw new Error(`Fetch returned ${res.status}.`);
+    if (!res.ok) throw new Error(`Fetch returned ${res.status}. The site may block bots.`);
     const html = (await res.text()).slice(0, 600_000);
     const headers: Record<string, string> = {};
     res.headers.forEach((v, k) => { headers[k] = v; });
@@ -54,11 +45,13 @@ function mainContent(html: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const raw = typeof body?.url === 'string' ? body.url : '';
-    const url = normalizeUrl(raw);
+    if (!rateLimit(`site:${clientIp(req)}`, 20)) {
+      return jsonErr('Too many scans right now. Try again in a minute.', 429);
+    }
+    const body = await readJson(req);
+    const url = normalizeUrl(asString(body.url, 2048));
     const host = new URL(url).hostname.replace(/^www\./, '');
-    const includeText = body?.include_text !== false;
+    const includeText = body.include_text !== false;
 
     const { html, headers } = await fetchPage(url);
     const builders = detectBuilders(html, headers);
@@ -72,15 +65,16 @@ export async function POST(req: NextRequest) {
       if (copy.split(/\s+/).length >= 12) textAnalysis = analyzeText(copy);
     }
 
-    return NextResponse.json({
+    return jsonOk({
       host,
       url,
       site: { builders, verdict: siteVerdict(builders) },
       design: { score: designScore, findings, goodMarks },
       text: textAnalysis,
+      plan: recommendations(findings),
       checkedAt: new Date().toISOString(),
     });
   } catch (err: unknown) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Site scan failed.' }, { status: 400 });
+    return jsonErr(err instanceof Error ? err.message : 'Site scan failed.');
   }
 }

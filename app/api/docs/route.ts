@@ -1,17 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { analyzeText } from '@/lib/text/ensemble';
+import { clientIp, jsonErr, jsonOk, rateLimit } from '@/lib/api';
 
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
+    if (!rateLimit(`docs:${clientIp(req)}`, 15)) {
+      return jsonErr('Too many uploads. Try again in a minute.', 429);
+    }
     const form = await req.formData();
     const file = form.get('file');
-    if (!(file instanceof Blob)) return NextResponse.json({ error: 'Attach a file.' }, { status: 400 });
+    if (!(file instanceof Blob)) return jsonErr('Attach a file.');
     const name = (file as File).name ?? 'upload';
     const buf = Buffer.from(await file.arrayBuffer());
     if (buf.length > 8 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Files over 8 MB are refused.' }, { status: 400 });
+      return jsonErr('Files over 8 MB are refused.');
     }
     let text = '';
     if (/\.pdf$/i.test(name) || file.type === 'application/pdf') {
@@ -29,13 +33,13 @@ export async function POST(req: NextRequest) {
     } else if (/\.(txt|md|markdown)$/i.test(name) || file.type.startsWith('text/')) {
       text = buf.toString('utf8');
     } else {
-      return NextResponse.json({ error: 'Supports .pdf, .docx, .txt, .md only.' }, { status: 400 });
+      return jsonErr('Supports .pdf, .docx, .txt, .md only.');
     }
     if (text.trim().length < 50) {
-      return NextResponse.json({ error: 'Could not extract enough text from that file.' }, { status: 400 });
+      return jsonErr('Could not extract enough text from that file.');
     }
-    return NextResponse.json({ filename: name, ...analyzeText(text) });
+    return jsonOk({ filename: name, ...analyzeText(text) });
   } catch {
-    return NextResponse.json({ error: 'Document analysis failed.' }, { status: 500 });
+    return jsonErr('Document analysis failed.', 500);
   }
 }

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Gauge } from './Forensics';
+import { Gauge, ImprovementPlan } from './Forensics';
+import type { Recommendation } from '@/lib/recommend';
 import type { Finding, GoodMark } from '@/lib/types';
 
 interface BuilderHit { builder: string; confidence: string; evidence: string[]; }
@@ -9,6 +10,7 @@ interface SiteReport {
   site: { builders: BuilderHit[]; verdict: string };
   design: { score: number; findings: Finding[]; goodMarks: GoodMark[] };
   text: { score: number; verdict: string; confidence: string } | null;
+  plan?: Recommendation[];
 }
 
 export function SiteLab({ onCheck, busy }: { onCheck: (url: string) => void; busy: boolean }) {
@@ -57,6 +59,7 @@ export function SiteReport({ report }: { report: SiteReport }) {
           <li key={f.id}><h4>{f.title} +{f.points}</h4><p>{f.note}</p></li>
         ))}</ol>
       ) : <p className="fine">No design fingerprints. Suspiciously tasteful.</p>}
+      {report.plan ? <ImprovementPlan plan={report.plan} /> : null}
     </div>
   );
 }

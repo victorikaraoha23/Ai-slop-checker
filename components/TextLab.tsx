@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Gauge, EngineGrid, Heatmap } from './Forensics';
+import { Gauge, EngineGrid, Heatmap, WritingTips } from './Forensics';
 import type { TextAnalysis } from '@/lib/text/engine';
 
 const SAMPLE = `The rapid spread of large language models has made it increasingly difficult to tell whether a piece of writing was produced by a person or by a machine. Automated detectors attempt to close that gap by measuring perplexity, burstiness, and other statistical fingerprints that tend to differ between human and generated prose.
@@ -22,10 +22,11 @@ export function TextLab() {
         body: JSON.stringify({ text, mode }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d?.error ?? 'Analysis failed.');
+      if (!r.ok || !d?.ok) throw new Error(d?.error ?? 'Analysis failed.');
+      const payload = d.data;
       if (mode === 'quick') {
-        setReport({ score: d.score, verdict: d.label, confidence: 'low', enginesFlagged: 0, enginesTotal: 0, engines: [], wordCount: 0, language: 'en', paragraphs: [], mode });
-      } else setReport({ ...d, mode });
+        setReport({ score: payload.score, verdict: payload.label, confidence: 'low', enginesFlagged: 0, enginesTotal: 0, engines: [], wordCount: 0, language: 'en', paragraphs: [], mode });
+      } else setReport({ ...payload, mode });
     } catch (e) { setError(e instanceof Error ? e.message : 'Analysis failed.'); }
     setBusy(false);
   }
@@ -64,6 +65,7 @@ export function TextLab() {
             </div>
           </div>
           <EngineGrid engines={report.engines} />
+          <WritingTips engines={report.engines} />
           <Heatmap paragraphs={report.paragraphs} />
         </div>
       ) : null}

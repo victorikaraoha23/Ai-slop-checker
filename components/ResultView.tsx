@@ -1,8 +1,10 @@
 'use client';
 import type { CheckResult } from '@/lib/types';
+import type { Recommendation } from '@/lib/recommend';
+import { ImprovementPlan } from './Forensics';
 
 export function ResultView({ result, critic, busy, onShare, onReset }: {
-  result: CheckResult & { fix: string };
+  result: CheckResult & { fix: string; plan: Recommendation[] };
   critic: string | null;
   busy: boolean;
   onShare: () => void;
@@ -21,6 +23,7 @@ export function ResultView({ result, critic, busy, onShare, onReset }: {
           <li key={f.id}><b>+{f.points} · {f.category}</b>{f.roast}</li>
         ))}</ul>
         <p className="fix"><span>If you fix one thing</span><b>{result.fix}</b></p>
+        {result.plan?.length ? <ImprovementPlan plan={result.plan} /> : null}
         <div className="acts">
           <button className="go" type="button" onClick={onShare}>Share your shame</button>
           <button className="quiet" type="button" onClick={onReset}>Try another</button>

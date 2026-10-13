@@ -1,5 +1,7 @@
 'use client';
 import type { TextEngineResult } from '@/lib/text/engine';
+import type { Recommendation } from '@/lib/recommend';
+import { engineTip } from '@/lib/recommend';
 
 export function verdictColor(score: number): string {
   if (score <= 30) return '#2d8a4e';
@@ -54,6 +56,52 @@ export function Heatmap({ paragraphs }: { paragraphs: Array<{ index: number; sco
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+/** Ranked, actionable "here's how to fix it" list. */
+export function ImprovementPlan({ plan }: { plan: Recommendation[] }) {
+  if (!plan.length) return null;
+  return (
+    <div className="plan">
+      <h3 className="report-h">Improvement plan · ranked by impact</h3>
+      <ol className="plan-list">
+        {plan.map((r, i) => (
+          <li key={r.findingId}>
+            <span className="plan-n">{String(i + 1).padStart(2, '0')}</span>
+            <div className="plan-body">
+              <div className="plan-head">
+                <b>{r.title}</b>
+                <em className={`effort ${r.effort}`}>{r.effort}</em>
+              </div>
+              <p>{r.fix}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Writing tips for the engines that fired hardest in a text run. */
+export function WritingTips({ engines }: { engines: TextEngineResult[] }) {
+  const flagged = engines
+    .filter((e) => e.score >= 0.4)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+  if (!flagged.length) return null;
+  return (
+    <div className="plan tips">
+      <h3 className="report-h">How to make it read human</h3>
+      <ul className="tip-list">
+        {flagged.map((e) => (
+          <li key={e.code}>
+            <b>{e.code}</b>
+            <span>{engineTip(e.code)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "npx tsx tests/smoke.ts",
+    "test": "npx tsx tests/smoke.ts && npx tsx tests/api.test.ts",
     "test:e2e": "playwright test",
     "test:all": "npm test && npm run test:e2e"
   },

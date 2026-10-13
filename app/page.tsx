@@ -5,12 +5,15 @@ import { DocLab } from '@/components/DocLab';
 import { SiteLab, SiteReport } from '@/components/SiteLab';
 import { ShotUploader } from '@/components/ShotUploader';
 import { ResultView } from '@/components/ResultView';
+import { ImprovementPlan } from '@/components/Forensics';
 import { analyzeImageFile } from '@/lib/image';
 import { drawBlobField, drawScoreBadge } from '@/lib/canvas';
+import { recommendations } from '@/lib/recommend';
 import type { CheckResult } from '@/lib/types';
+import type { Recommendation } from '@/lib/recommend';
 
 type Tab = 'site' | 'text' | 'doc' | 'shot';
-type UiResult = CheckResult & { fix: string };
+type UiResult = CheckResult & { fix: string; plan: Recommendation[] };
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'site', label: 'Site URL' },
   { id: 'text', label: 'AI Text' },
@@ -48,7 +51,7 @@ export default function HomePage() {
     try {
       const r = await fetch('/api/roast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ findings: ui.findings, host: ui.host, score: ui.score }) });
       const d = await r.json();
-      if (d?.opinion) setCritic(d.opinion);
+      if (d?.ok && d.data?.opinion) setCritic(d.data.opinion);
     } catch { /* optional */ }
   }
   async function checkSite(url: string) {
@@ -58,11 +61,12 @@ export default function HomePage() {
     try {
       const r = await fetch('/api/site', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d?.error ?? 'Scan failed.');
-      d.site.builders.forEach((b: { builder: string }) => trace(b.builder.toLowerCase(), true));
-      d.design.findings.slice(0, 4).forEach((f: { title: string }) => trace(f.title.toLowerCase().slice(0, 32), true));
-      trace(`design slop ${d.design.score}/100`, d.design.score >= 35);
-      setSiteReport(d);
+      if (!r.ok || !d?.ok) throw new Error(d?.error ?? 'Scan failed.');
+      const rep = d.data;
+      rep.site.builders.forEach((b: { builder: string }) => trace(b.builder.toLowerCase(), true));
+      rep.design.findings.slice(0, 4).forEach((f: { title: string }) => trace(f.title.toLowerCase().slice(0, 32), true));
+      trace(`design slop ${rep.design.score}/100`, rep.design.score >= 35);
+      setSiteReport(rep);
       setPreview(`https://image.thum.io/get/width/1200/crop/900/noanimate/${encodeURIComponent(url)}`);
       setBusy(false);
       setTimeout(() => document.getElementById('sitereport')?.scrollIntoView({ behavior: 'smooth' }), 60);
@@ -79,7 +83,7 @@ export default function HomePage() {
       const rep = await analyzeImageFile(file);
       rep.findings.slice(0, 6).forEach((f) => trace(f.title.toLowerCase().slice(0, 32), true));
       trace(`total slop ${rep.score}/100`, rep.score >= 35);
-      setResult({ host: file.name.replace(/\.[^.]+$/, '') || 'screenshot', findings: rep.findings, goodMarks: rep.goodMarks, score: rep.score, verdict: rep.verdict, screenshotUrl: obj, pageTitle: null, checkedAt: new Date().toISOString(), fix: rep.fix });
+      setResult({ host: file.name.replace(/\.[^.]+$/, '') || 'screenshot', findings: rep.findings, goodMarks: rep.goodMarks, score: rep.score, verdict: rep.verdict, screenshotUrl: obj, pageTitle: null, checkedAt: new Date().toISOString(), fix: rep.fix, plan: recommendations(rep.findings) });
       setBusy(false);
     } catch (e) { setBusy(false); setError(e instanceof Error ? e.message : 'Could not read image.'); }
   }
@@ -168,6 +172,7 @@ export default function HomePage() {
               <ol className="ev">{siteReport.design.findings.map((f) => (
                 <li key={f.id}><h4>{f.title}</h4><p>{f.note}</p></li>
               ))}</ol>
+              {siteReport.plan?.length ? <ImprovementPlan plan={siteReport.plan} /> : null}
             </div>
           </section>
         ) : null}

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Gauge, EngineGrid, Heatmap } from './Forensics';
+import { Gauge, EngineGrid, Heatmap, WritingTips } from './Forensics';
 
 interface DocReport {
   filename: string;
@@ -27,8 +27,8 @@ export function DocLab() {
       fd.append('file', f);
       const r = await fetch('/api/docs', { method: 'POST', body: fd });
       const d = await r.json();
-      if (!r.ok) throw new Error(d?.error ?? 'Document check failed.');
-      setReport(d as DocReport);
+      if (!r.ok || !d?.ok) throw new Error(d?.error ?? 'Document check failed.');
+      setReport(d.data as DocReport);
     } catch (e) { setError(e instanceof Error ? e.message : 'Document check failed.'); }
     setBusy(false);
   }
@@ -52,6 +52,7 @@ export function DocLab() {
             </div>
           </div>
           <EngineGrid engines={report.engines} />
+          <WritingTips engines={report.engines} />
           <Heatmap paragraphs={report.paragraphs} />
         </div>
       ) : null}

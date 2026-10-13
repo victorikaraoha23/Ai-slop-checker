@@ -1,16 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { analyzeHtml, fixSuggestion, scoreFindings, verdictFor } from '@/lib/analyze';
+import { recommendations } from '@/lib/recommend';
+import { asString, clientIp, jsonErr, jsonOk, normalizeUrl, rateLimit, readJson } from '@/lib/api';
 
 export const maxDuration = 30;
-
-function normalizeUrl(input: string): string {
-  let v = input.trim();
-  if (!v) throw new Error('Enter a URL first.');
-  if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
-  const u = new URL(v);
-  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Only http(s) URLs are supported.');
-  return u.toString();
-}
 
 async function fetchHtml(url: string): Promise<{ html: string; text: string; title: string | null }> {
   const target = 'https://r.jina.ai/' + url;
@@ -42,14 +35,16 @@ function screenshotFor(url: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const raw = typeof body?.url === 'string' ? body.url : '';
-    const url = normalizeUrl(raw);
+    if (!rateLimit(`check:${clientIp(req)}`, 20)) {
+      return jsonErr('Too many checks right now. Try again in a minute.', 429);
+    }
+    const body = await readJson(req);
+    const url = normalizeUrl(asString(body.url, 2048));
     const host = new URL(url).hostname.replace(/^www\./, '');
     const { html, text, title } = await fetchHtml(url);
     const { findings, goodMarks } = analyzeHtml(html, text);
     const score = scoreFindings(findings);
-    return NextResponse.json({
+    return jsonOk({
       host,
       findings,
       goodMarks,
@@ -58,10 +53,10 @@ export async function POST(req: NextRequest) {
       screenshotUrl: screenshotFor(url),
       pageTitle: title,
       fix: fixSuggestion(findings),
+      plan: recommendations(findings),
       checkedAt: new Date().toISOString(),
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Check failed. Try another URL.';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return jsonErr(err instanceof Error ? err.message : 'Check failed. Try another URL.');
   }
 }

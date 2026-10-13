@@ -3,6 +3,7 @@ node_modules/
 # next
 .next/
 out/
+*.tsbuildinfo
 # vercel
 .vercel
 # env
