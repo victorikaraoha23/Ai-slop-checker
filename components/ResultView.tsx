@@ -11,6 +11,9 @@ export function ResultView({ result, critic, busy, onShare, onReset }: {
   return (
     <section className="result" id="result">
       <div className="verdict-col">
+        <span className="stamp" style={{ color: result.score >= 55 ? 'var(--pink)' : result.score >= 35 ? 'var(--warn)' : 'var(--clean)' }}>
+          {result.score >= 80 ? 'Certified slop' : result.score >= 55 ? 'Sloppy' : result.score >= 35 ? 'Suspect' : result.score >= 15 ? 'Mostly human' : 'Hand-made'}
+        </span>
         <canvas className="score" id="scoreArt" />
         <h2 className="verdict">{result.verdict.label} — {result.score}/100</h2>
         <p className="critic">{busy ? 'Consulting the second opinion…' : (critic ?? result.verdict.summary)}</p>

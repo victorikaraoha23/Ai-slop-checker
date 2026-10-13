@@ -92,12 +92,16 @@ export default function HomePage() {
   return (
     <div className="wrap">
       <header className="top">
-        <span className="mark">slop<b>/</b>check</span>
-        <span>A forensic lab for machine-made content</span>
+        <span className="mark">slop<span className="slash">/</span>check <span className="live"><i />LIVE</span></span>
+        <span className="tag">A forensic lab for machine-made content</span>
       </header>
+      <div className="ticker" aria-hidden="true">
+        <span>DELVE DETECTED · SEAMLESS FLAGGED · GRADIENT FOG AT 80% · BADGE + CENTERED HERO COMBO · EM-DASH CHAINS · LOVABLE FINGERPRINT CONFIRMED · READING PIXELS · CONSULTING SECOND OPINION ·&nbsp;</span>
+      </div>
       <main>
         <section className="hero">
           <div className="intro">
+            <span className="kicker">Field instrument · No. 04</span>
             <h1>Is it <span className="hot">AI slop?</span></h1>
             <p className="lede">Four instruments, one verdict. Scan a site for builder fingerprints, run 8 text engines over suspect prose, dissect a document, or read the pixels.</p>
             <div className="seg" role="tablist" aria-label="What are you checking">
@@ -113,16 +117,31 @@ export default function HomePage() {
             <p className="err" role="alert">{error}</p>
           </div>
           <figure className="scope">
-            <div className="screen">
-              <canvas ref={canvasRef} style={{ opacity: showOrig && preview ? 0 : 1 }} />
-              {preview ? <img src={preview} alt="" style={{ opacity: showOrig ? 1 : 0 }} /> : null}
+            <div className="specimen">
+              <div className="specimen-bar">
+                <span>SPECIMEN · {busy ? 'SCANNING' : preview ? 'CAPTURED' : 'IDLE'}</span>
+                <span className="dots"><i /><i /><i /></span>
+              </div>
+              <div className="screen">
+                <canvas ref={canvasRef} style={{ opacity: showOrig && preview ? 0 : 1 }} />
+                {preview ? <img src={preview} alt="" style={{ opacity: showOrig ? 1 : 0 }} /> : null}
+              </div>
+              <figcaption className="cap">
+                <p>{CAP}</p>
+                {preview ? <button className="peek" type="button" onClick={() => setShowOrig((v) => !v)}>{showOrig ? 'Show instrument' : 'Show original'}</button> : null}
+              </figcaption>
             </div>
-            <figcaption className="cap">
-              <p>{CAP}</p>
-              {preview ? <button className="peek" type="button" onClick={() => setShowOrig((v) => !v)}>{showOrig ? 'Show instrument' : 'Show original'}</button> : null}
-            </figcaption>
-            <ol className="log">{log.map((l, i) => <li key={i} className={l.hit ? 'hit' : ''}><span>{l.label}</span><b>{l.hit ? 'HIT' : '…'}</b></li>)}</ol>
+            <ol className="log">
+              {log.length === 0 ? <li><span className="log-empty">awaiting specimen…</span><b>···</b></li> : null}
+              {log.map((l, i) => <li key={i} className={l.hit ? 'hit' : ''}><span>{l.label}</span><b>{l.hit ? 'HIT' : '···'}</b></li>)}
+            </ol>
           </figure>
+        </section>
+        <section className="stats" aria-label="Lab capabilities">
+          <div className="stat"><b>8<em>+20</em></b><span>detection engines</span></div>
+          <div className="stat"><b>7</b><span>builder fingerprints</span></div>
+          <div className="stat"><b>0<em>MB</em></b><span>models to download</span></div>
+          <div className="stat"><b>0</b><span>bytes stored</span></div>
         </section>
         {siteReport ? (
           <section className="result" id="sitereport">

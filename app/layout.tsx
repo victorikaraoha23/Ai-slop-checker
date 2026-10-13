@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './components.css';
 import './result.css';
 import './lab.css';
 
