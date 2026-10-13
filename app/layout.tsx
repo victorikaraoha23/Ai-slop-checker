@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './result.css';
+import './lab.css';
 
 export const metadata: Metadata = {
-  title: 'slopcheck — is your site AI slop?',
+  title: 'slopcheck — is it AI slop?',
   description:
-    'Paste a URL or drop a screenshot. slopcheck inspects markup and pixels for tell-tale AI-generated patterns.',
+    'Four instruments, one verdict. Scan sites for builder fingerprints, run text engines, dissect documents, read pixels.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
