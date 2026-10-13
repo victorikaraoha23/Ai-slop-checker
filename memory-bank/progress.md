@@ -14,7 +14,9 @@
 - [x] Memory bank initialized (brief, product, system, tech, active)
 
 ## In progress
-- [ ] README + .env.example
-- [ ] `npm install` + production build check
-- [ ] Commit + push to origin/main
-- [ ] Vercel deploy
+- [ ] Vercel deploy (import repo in dashboard or run `vercel --prod`)
+
+## Verified
+- [x] README + .env.example
+- [x] `npm install` + production build check (green)
+- [x] Commit `32b4cd4` pushed to origin/main
