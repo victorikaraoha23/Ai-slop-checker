@@ -1,0 +1,13 @@
+# dependencies
+node_modules/
+# next
+.next/
+out/
+# vercel
+.vercel
+# env
+.env*.local
+.env
+# misc
+*.log
+.DS_Store
