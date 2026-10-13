@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { NextRequest } from 'next/server';
 import { POST as checkRoute } from '../app/api/check/route';
 import { POST as site } from '../app/api/site/route';
@@ -109,6 +110,19 @@ async function main() {
   {
     const res = await docs(new NextRequest('http://localhost/api/docs', { method: 'POST', body: new FormData() }));
     check('no file -> 400', res.status === 400, `got ${res.status}`);
+  }
+  // Real PDF + DOCX fixtures (serverless-safe extraction path).
+  for (const [label, path, mime] of [
+    ['pdf', '/tmp/sample.pdf', 'application/pdf'],
+    ['docx', '/tmp/sample.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ] as const) {
+    if (!existsSync(path)) { check(`${label} fixture present`, false, 'missing /tmp fixture'); continue; }
+    const fd = new FormData();
+    fd.append('file', new Blob([readFileSync(path)], { type: mime }), path.split('/').pop());
+    const res = await docs(new NextRequest('http://localhost/api/docs', { method: 'POST', body: fd }));
+    const { ok, body } = await shapeIsStandard(res);
+    const data = body.data as { score: number; wordCount: number; engines: unknown[] };
+    check(`${label} upload extracts + scores`, ok && res.status === 200 && data.wordCount > 20 && data.engines.length === 8, `got ${res.status}`);
   }
 
   // ---- /api/roast ----

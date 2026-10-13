@@ -20,7 +20,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'doc', label: 'Document' },
   { id: 'shot', label: 'Screenshot' },
 ];
-const CAP = 'Specimen 01. Every input gets dissected: markup, prose, pixels.';
+const CAP = 'Sensor array live. Every input gets dissected: markup, prose, pixels.';
 
 export default function HomePage() {
   const [tab, setTab] = useState<Tab>('site');
@@ -123,7 +123,7 @@ export default function HomePage() {
           <figure className="scope">
             <div className="specimen">
               <div className="specimen-bar">
-                <span>SPECIMEN · {busy ? 'SCANNING' : preview ? 'CAPTURED' : 'IDLE'}</span>
+                <span>SPECIMEN · {busy ? 'SCANNING' : preview ? 'CAPTURED' : 'ARMED'}</span>
                 <span className="dots"><i /><i /><i /></span>
               </div>
               <div className="screen">
@@ -142,9 +142,9 @@ export default function HomePage() {
           </figure>
         </section>
         <section className="stats" aria-label="Lab capabilities">
-          <div className="stat"><b>8<em>+20</em></b><span>detection engines</span></div>
+          <div className="stat"><b>8</b><span>text engines</span></div>
+          <div className="stat"><b>25</b><span>design detectors</span></div>
           <div className="stat"><b>7</b><span>builder fingerprints</span></div>
-          <div className="stat"><b>0<em>MB</em></b><span>models to download</span></div>
           <div className="stat"><b>0</b><span>bytes stored</span></div>
         </section>
         {siteReport ? (
@@ -179,8 +179,8 @@ export default function HomePage() {
         {result ? <ResultView result={result} critic={critic} busy={false} onShare={() => void share()} onReset={() => { clear(); setPreview(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /> : null}
       </main>
       <footer>
-        <span>slop/check. Built to bully rounded rectangles.</span>
-        <span>Nothing is stored. We forget you instantly, unlike your hero section.</span>
+        <span>slop/check — a forensic lab for machine-made content.</span>
+        <span>Four instruments · 8 text engines · 25 design detectors. Nothing is stored.</span>
       </footer>
     </div>
   );

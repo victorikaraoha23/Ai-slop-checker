@@ -20,6 +20,13 @@ const nextConfig = {
   reactStrictMode: true,
   images: { remotePatterns: [{ protocol: 'https', hostname: '**' }] },
   poweredByHeader: false,
+  // Keep these Node-only libs out of the webpack bundle so their Node
+  // builds (not browser/worker builds) are used in serverless functions.
+  // (Next 14 uses the `experimental.` prefix; Next 15 renames it to
+  // `serverExternalPackages`.)
+  experimental: {
+    serverComponentsExternalPackages: ['pdfjs-dist', 'mammoth'],
+  },
   async headers() {
     return [
       {
