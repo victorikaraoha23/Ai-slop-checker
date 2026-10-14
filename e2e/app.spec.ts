@@ -79,6 +79,27 @@ test.describe('slopcheck forensic lab', () => {
     await expect(page.locator('.err').first()).toContainText(/URL/);
   });
 
+  test('Share button copies + shows toast confirmation', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/');
+    // Use the Screenshot lab — it runs fully locally, no network needed.
+    await page.getByRole('tab', { name: 'Screenshot' }).click();
+    const buf = await page.evaluate(async () => {
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 300;
+      const x = c.getContext('2d')!;
+      x.fillStyle = '#f5f4f0'; x.fillRect(0, 0, 400, 300);
+      x.fillStyle = '#8b5cf6'; x.fillRect(40, 60, 320, 120);
+      const b: Blob = await new Promise((res) => c.toBlob((v) => res(v!), 'image/png'));
+      return Array.from(new Uint8Array(await b.arrayBuffer()));
+    });
+    await page.locator('input[type="file"]').setInputFiles({ name: 'shot.png', mimeType: 'image/png', buffer: Buffer.from(buf) });
+    await expect(page.locator('#result .verdict')).toBeVisible({ timeout: 15000 });
+    // Desktop Chromium has no navigator.share, so this exercises the clipboard path.
+    await page.getByRole('button', { name: /Share your shame/ }).click();
+    await expect(page.locator('.toast')).toContainText(/Copied to clipboard/i, { timeout: 5000 });
+  });
+
   test('responsive: mobile layout stacks', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');

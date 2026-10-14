@@ -32,6 +32,7 @@ export default function HomePage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [showOrig, setShowOrig] = useState(false);
   const [critic, setCritic] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (canvasRef.current) return drawBlobField(canvasRef.current);
@@ -88,10 +89,57 @@ export default function HomePage() {
     } catch (e) { setBusy(false); setError(e instanceof Error ? e.message : 'Could not read image.'); }
   }
 
+  function flash(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast((cur) => (cur === msg ? '' : cur)), 3200);
+  }
+  // Legacy clipboard fallback for when the async Clipboard API is blocked
+  // (page not focused, permission denied, insecure context).
+  function legacyCopy(text: string): boolean {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
   async function share() {
     const t = result ? `Score ${result.score}/100 on slopcheck.` : siteReport ? `Site scan: ${siteReport.site.verdict}` : 'Is it AI slop?';
-    try { await navigator.clipboard.writeText(`${t} ${window.location.href}`); setError('Copied. Go confess publicly.'); }
-    catch { setError('Clipboard blocked. Screenshot it instead.'); }
+    const text = `${t} ${window.location.href}`;
+    // 1) Native share sheet (mobile / supported browsers).
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'slopcheck', text: t, url: window.location.href });
+        return;
+      } catch (e) {
+        // User dismissed the sheet, or share failed — fall through to copy.
+        if (e instanceof Error && e.name === 'AbortError') return;
+      }
+    }
+    // 2) Async Clipboard API.
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        flash('Copied to clipboard. Go confess publicly.');
+        return;
+      }
+    } catch { /* fall through */ }
+    // 3) Legacy execCommand copy.
+    if (legacyCopy(text)) {
+      flash('Copied to clipboard. Go confess publicly.');
+    } else {
+      flash('Could not copy automatically — select the URL and copy it yourself.');
+    }
   }
   return (
     <div className="wrap">
@@ -178,6 +226,9 @@ export default function HomePage() {
         ) : null}
         {result ? <ResultView result={result} critic={critic} busy={false} onShare={() => void share()} onReset={() => { clear(); setPreview(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }} /> : null}
       </main>
+      <div className="toast-wrap" aria-live="polite" aria-atomic="true">
+        {toast ? <div className="toast" role="status">{toast}</div> : null}
+      </div>
       <footer>
         <span>slop/check — a forensic lab for machine-made content.</span>
         <span>Four instruments · 8 text engines · 25 design detectors. Nothing is stored.</span>
