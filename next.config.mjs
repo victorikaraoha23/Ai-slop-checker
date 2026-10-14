@@ -24,8 +24,15 @@ const nextConfig = {
   // builds (not browser/worker builds) are used in serverless functions.
   // (Next 14 uses the `experimental.` prefix; Next 15 renames it to
   // `serverExternalPackages`.)
+  // `outputFileTracingIncludes` is required because pdf.js dynamically
+  // imports its worker (`pdf.worker.mjs`) at runtime — Next's file tracer
+  // cannot see that import, so the worker was absent from the deployed
+  // bundle ("Cannot find module .../pdf.worker.mjs imported from .../pdf.mjs").
   experimental: {
     serverComponentsExternalPackages: ['pdfjs-dist', 'mammoth'],
+    outputFileTracingIncludes: {
+      '/api/docs': ['node_modules/pdfjs-dist/**/*'],
+    },
   },
   async headers() {
     return [
