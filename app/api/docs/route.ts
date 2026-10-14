@@ -33,6 +33,13 @@ async function extractPdf(buf: Buffer): Promise<string> {
   return parts.join('\n');
 }
 
+/** Extract raw text from a .docx via mammoth. */
+async function extractDocx(buf: Buffer): Promise<string> {
+  const mammoth = await import('mammoth');
+  const parsed = await mammoth.extractRawText({ buffer: buf });
+  return parsed.value;
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!rateLimit(`docs:${clientIp(req)}`, 15)) {
@@ -50,19 +57,21 @@ export async function POST(req: NextRequest) {
     if (/\.pdf$/i.test(name) || file.type === 'application/pdf') {
       text = await extractPdf(buf);
     } else if (/\.docx$/i.test(name) || file.type.includes('word')) {
-      const mammoth = await import('mammoth');
-      const parsed = await mammoth.extractRawText({ buffer: buf });
-      text = parsed.value;
+      text = await extractDocx(buf);
     } else if (/\.(txt|md|markdown)$/i.test(name) || file.type.startsWith('text/')) {
       text = buf.toString('utf8');
     } else {
       return jsonErr('Supports .pdf, .docx, .txt, .md only.');
     }
-    if (text.trim().length < 50) {
-      return jsonErr('Could not extract enough text from that file.');
+    if (text.replace(/\s+/g, ' ').trim().length < 50) {
+      return jsonErr('Could not extract enough readable text from that file. Scanned or image-only PDFs have no text layer to read.');
     }
     return jsonOk({ filename: name, ...analyzeText(text) });
-  } catch {
-    return jsonErr('Document analysis failed.', 500);
+  } catch (err: unknown) {
+    // Surface the real cause so failures are diagnosable (still user-safe:
+    // library error messages, never a stack trace).
+    const detail = err instanceof Error ? err.message : '';
+    console.error('[docs] extraction failed:', detail);
+    return jsonErr(detail ? `Document analysis failed: ${detail}` : 'Document analysis failed.', 500);
   }
 }

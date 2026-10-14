@@ -8,7 +8,9 @@ import { ResultView } from '@/components/ResultView';
 import { ImprovementPlan } from '@/components/Forensics';
 import { analyzeImageFile } from '@/lib/image';
 import { drawBlobField, drawScoreBadge } from '@/lib/canvas';
+import { renderReceiptPng, type ReceiptData } from '@/lib/receipt';
 import { recommendations } from '@/lib/recommend';
+import { verdictFor } from '@/lib/analyze';
 import type { CheckResult } from '@/lib/types';
 import type { Recommendation } from '@/lib/recommend';
 
@@ -113,33 +115,83 @@ export default function HomePage() {
       return false;
     }
   }
+  // Build the receipt data from whichever result is on screen.
+  function buildReceipt(): ReceiptData | null {
+    if (result) {
+      return {
+        host: result.host, score: result.score, verdict: result.verdict, kind: 'image',
+        checkedAt: result.checkedAt,
+        lines: result.findings.map((f) => ({ title: f.title, points: f.points })),
+      };
+    }
+    if (siteReport) {
+      const builderLines = siteReport.site.builders.map((b) => ({ title: `${b.builder} fingerprint`, points: 9 }));
+      const findingLines = siteReport.design.findings.map((f) => ({ title: f.title, points: f.points }));
+      return {
+        host: siteReport.host, score: siteReport.design.score,
+        verdict: verdictFor(siteReport.design.score), kind: 'site',
+        checkedAt: siteReport.checkedAt ?? new Date().toISOString(),
+        lines: [...builderLines, ...findingLines],
+      };
+    }
+    return null;
+  }
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
   async function share() {
-    const t = result ? `Score ${result.score}/100 on slopcheck.` : siteReport ? `Site scan: ${siteReport.site.verdict}` : 'Is it AI slop?';
+    const data = buildReceipt();
+    if (!data) { flash('Run a scan first, then share the receipt.'); return; }
+    const t = `Slop score ${data.score}/100 on ${data.host} — slopcheck.`;
     const text = `${t} ${window.location.href}`;
-    // 1) Native share sheet (mobile / supported browsers).
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    let png: Blob | null = null;
+    try {
+      png = await renderReceiptPng(data);
+    } catch {
+      png = null;
+    }
+    const filename = `slop-receipt-${data.host.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png`;
+
+    // 1) Native share with the PNG file attached (mobile / supporting browsers).
+    if (png && typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [new File([png], filename, { type: 'image/png' })] })) {
       try {
-        await navigator.share({ title: 'slopcheck', text: t, url: window.location.href });
+        await navigator.share({ files: [new File([png], filename, { type: 'image/png' })], title: 'slopcheck', text: t });
         return;
       } catch (e) {
-        // User dismissed the sheet, or share failed — fall through to copy.
         if (e instanceof Error && e.name === 'AbortError') return;
+        // else fall through to download/clipboard
       }
     }
-    // 2) Async Clipboard API.
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(text);
-        flash('Copied to clipboard. Go confess publicly.');
+
+    // 2) Copy the PNG image to the clipboard when possible.
+    if (png && navigator.clipboard && typeof navigator.clipboard.write === 'function' && typeof ClipboardItem !== 'undefined') {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        flash('Slop receipt copied as an image. Paste it anywhere.');
         return;
-      }
-    } catch { /* fall through */ }
-    // 3) Legacy execCommand copy.
-    if (legacyCopy(text)) {
-      flash('Copied to clipboard. Go confess publicly.');
-    } else {
-      flash('Could not copy automatically — select the URL and copy it yourself.');
+      } catch { /* fall through */ }
     }
+
+    // 3) Download the PNG (always works) + try to copy the text link too.
+    if (png) {
+      downloadBlob(png, filename);
+      flash('Slop receipt downloaded as a PNG.');
+      return;
+    }
+
+    // 4) No canvas available — fall back to copying the text summary.
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try { await navigator.clipboard.writeText(text); flash('Copied to clipboard. Go confess publicly.'); return; } catch { /* fall through */ }
+    }
+    if (legacyCopy(text)) flash('Copied to clipboard. Go confess publicly.');
+    else flash('Could not share automatically — screenshot it instead.');
   }
   return (
     <div className="wrap">

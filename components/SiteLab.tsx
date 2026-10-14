@@ -7,6 +7,8 @@ import type { Finding, GoodMark } from '@/lib/types';
 interface BuilderHit { builder: string; confidence: string; evidence: string[]; }
 interface SiteReport {
   host: string;
+  url?: string;
+  checkedAt?: string;
   site: { builders: BuilderHit[]; verdict: string };
   design: { score: number; findings: Finding[]; goodMarks: GoodMark[] };
   text: { score: number; verdict: string; confidence: string } | null;

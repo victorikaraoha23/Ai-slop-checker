@@ -79,8 +79,7 @@ test.describe('slopcheck forensic lab', () => {
     await expect(page.locator('.err').first()).toContainText(/URL/);
   });
 
-  test('Share button copies + shows toast confirmation', async ({ page, context }) => {
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  test('Share button generates a slop receipt PNG', async ({ page }) => {
     await page.goto('/');
     // Use the Screenshot lab — it runs fully locally, no network needed.
     await page.getByRole('tab', { name: 'Screenshot' }).click();
@@ -95,9 +94,16 @@ test.describe('slopcheck forensic lab', () => {
     });
     await page.locator('input[type="file"]').setInputFiles({ name: 'shot.png', mimeType: 'image/png', buffer: Buffer.from(buf) });
     await expect(page.locator('#result .verdict')).toBeVisible({ timeout: 15000 });
-    // Desktop Chromium has no navigator.share, so this exercises the clipboard path.
-    await page.getByRole('button', { name: /Share your shame/ }).click();
-    await expect(page.locator('.toast')).toContainText(/Copied to clipboard/i, { timeout: 5000 });
+    // Desktop Chromium can't share/copy image files, so the deterministic
+    // path is a PNG download. Assert a real PNG is produced.
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 8000 }),
+      page.getByRole('button', { name: /Share your shame/ }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/^slop-receipt-.*\.png$/);
+    const path = await download.path();
+    expect(path).toBeTruthy();
+    await expect(page.locator('.toast')).toContainText(/receipt/i, { timeout: 5000 });
   });
 
   test('responsive: mobile layout stacks', async ({ page }) => {
