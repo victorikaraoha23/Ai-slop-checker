@@ -146,8 +146,15 @@ export default function HomePage() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
+  async function shareSummary(score: number, verdict: string, host: string) {
+    const data: ReceiptData = { score, verdict: { score, label: verdict, summary: verdict }, host, kind: 'text', checkedAt: new Date().toISOString(), lines: [] };
+    await shareReceipt(data);
+  }
   async function share() {
     const data = buildReceipt();
+    await shareReceipt(data);
+  }
+  async function shareReceipt(data: ReceiptData | null) {
     if (!data) { flash('Run a scan first, then share the receipt.'); return; }
     const t = `Slop score ${data.score}/100 on ${data.host} — slopcheck.`;
     const text = `${t} ${window.location.href}`;
@@ -215,8 +222,8 @@ export default function HomePage() {
               ))}
             </div>
             {tab === 'site' ? <SiteLab onCheck={(u) => void checkSite(u)} busy={busy} /> : null}
-            {tab === 'text' ? <TextLab /> : null}
-            {tab === 'doc' ? <DocLab /> : null}
+            {tab === 'text' ? <TextLab onShare={(score, verdict, host) => void shareSummary(score, verdict, host)} /> : null}
+            {tab === 'doc' ? <DocLab onShare={(score, verdict, host) => void shareSummary(score, verdict, host)} /> : null}
             {tab === 'shot' ? <ShotUploader onFile={(f) => void onShot(f)} /> : null}
             <p className="err" role="alert">{error}</p>
           </div>

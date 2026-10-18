@@ -17,7 +17,7 @@ export interface ReceiptData {
   verdict: Verdict;
   lines: ReceiptLine[];
   checkedAt: string;
-  kind: 'site' | 'image';
+  kind: 'site' | 'image' | 'text';
 }
 
 const INK = '#15140f';
