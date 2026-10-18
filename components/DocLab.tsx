@@ -14,7 +14,7 @@ interface DocReport {
   wordCount: number;
 }
 
-export function DocLab() {
+export function DocLab({ onShare }: { onShare?: (score: number, verdict: string, host: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<DocReport | null>(null);
@@ -54,6 +54,7 @@ export function DocLab() {
           <EngineGrid engines={report.engines} />
           <WritingTips engines={report.engines} />
           <Heatmap paragraphs={report.paragraphs} />
+          {onShare ? <div className="acts"><button className="go" type="button" onClick={() => onShare(report.score, report.verdict, report.filename)}>Share your shame</button></div> : null}
         </div>
       ) : null}
     </div>

@@ -7,7 +7,7 @@ const SAMPLE = `The rapid spread of large language models has made it increasing
 
 No single signal is reliable on its own, so modern systems combine many weak indicators into a single calibrated score. The result is a useful tool rather than a verdict, and it should always be read alongside context, provenance, and the plain judgement of a careful human reader.`;
 
-export function TextLab() {
+export function TextLab({ onShare }: { onShare?: (score: number, verdict: string, host: string) => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -67,6 +67,7 @@ export function TextLab() {
           <EngineGrid engines={report.engines} />
           <WritingTips engines={report.engines} />
           <Heatmap paragraphs={report.paragraphs} />
+          {onShare ? <div className="acts"><button className="go" type="button" onClick={() => onShare(report.score, report.verdict, 'pasted text')}>Share your shame</button></div> : null}
         </div>
       ) : null}
     </div>
