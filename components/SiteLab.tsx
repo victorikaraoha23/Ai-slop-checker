@@ -60,7 +60,7 @@ export function SiteReport({ report }: { report: SiteReport }) {
       {report.aiAnalysis ? (
         <section className="ai-analysis" aria-label="AI analysis">
           <h3 className="report-h">AI analysis</h3>
-          {report.aiAnalysis.split(/\\n\\s*\\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          {report.aiAnalysis.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
         </section>
       ) : null}
       {report.design.findings.length ? (

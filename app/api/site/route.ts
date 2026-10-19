@@ -51,21 +51,25 @@ async function generateAiAnalysis(host: string, score: number, findings: ReturnT
   try {
     const evidence = findings.slice(0, 8).map((f) => `${f.title}: ${f.note}`).join('\\n');
     const copy = text ? `Copy classifier: ${text.verdict}, ${text.score}/100 (${text.confidence} confidence).` : 'No meaningful copy sample.';
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST', signal: controller.signal,
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://ai-slop-checker.vercel.app', 'X-Title': 'slopcheck' },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free',
-        messages: [
-          { role: 'system', content: 'You are an expert web design auditor. Write 3 short plain-text paragraphs: your evidence-based conclusion, the strongest signals, and one practical next step. Treat heuristic scores as clues, not proof. Do not use markdown headings.' },
-          { role: 'user', content: `Site: ${host}\nDesign score: ${score}/100\n${copy}\nEvidence:\n${evidence || 'No suspicious design signals.'}` },
-        ], temperature: 0.2, max_tokens: 280,
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const output = data?.choices?.[0]?.message?.content;
-    return typeof output === 'string' && output.trim() ? output.trim().slice(0, 1800) : null;
+    const models = [...new Set([process.env.OPENROUTER_MODEL?.trim(), 'openrouter/free'].filter(Boolean))];
+    for (const model of models) {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST', signal: controller.signal,
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://ai-slop-checker.vercel.app', 'X-Title': 'slopcheck' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: 'You are an expert web design auditor. Write 3 short plain-text paragraphs: your evidence-based conclusion, the strongest signals, and one practical next step. Treat heuristic scores as clues, not proof. Do not use markdown headings.' },
+            { role: 'user', content: `Site: ${host}\nDesign score: ${score}/100\n${copy}\nEvidence:\n${evidence || 'No suspicious design signals.'}` },
+          ], temperature: 0.2, max_tokens: 280,
+        }),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const output = data?.choices?.[0]?.message?.content;
+      if (typeof output === 'string' && output.trim()) return output.trim().slice(0, 1800);
+    }
+    return null;
   } catch { return null; }
   finally { clearTimeout(timeout); }
 }

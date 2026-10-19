@@ -22,7 +22,7 @@ export function ResultView({ result, critic, busy, onShare, onReset }: {
         {result.aiAnalysis ? (
           <div className="ai-analysis" aria-label="AI analysis">
             <b>AI analysis</b>
-            {result.aiAnalysis.split(/\\n\\s*\\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+            {result.aiAnalysis.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           </div>
         ) : null}
         <ul className="roasts">{result.findings.slice(0, 5).map((f) => (

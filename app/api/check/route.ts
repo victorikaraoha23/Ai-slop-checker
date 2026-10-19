@@ -51,7 +51,7 @@ async function generateAiAnalysis(host: string, title: string | null, score: num
         'X-Title': 'slopcheck',
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free',
+        model: process.env.OPENROUTER_MODEL?.trim() || 'openrouter/free',
         messages: [
           {
             role: 'system',
