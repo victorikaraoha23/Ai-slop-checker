@@ -12,6 +12,7 @@ interface SiteReport {
   site: { builders: BuilderHit[]; verdict: string };
   design: { score: number; findings: Finding[]; goodMarks: GoodMark[] };
   text: { score: number; verdict: string; confidence: string } | null;
+  aiAnalysis?: string | null;
   plan?: Recommendation[];
 }
 
@@ -56,6 +57,12 @@ export function SiteReport({ report }: { report: SiteReport }) {
           ) : <p className="fine">Not enough on-page copy to score the words.</p>}
         </div>
       </div>
+      {report.aiAnalysis ? (
+        <section className="ai-analysis" aria-label="AI analysis">
+          <h3 className="report-h">AI analysis</h3>
+          {report.aiAnalysis.split(/\\n\\s*\\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+        </section>
+      ) : null}
       {report.design.findings.length ? (
         <ol className="ev">{report.design.findings.slice(0, 8).map((f) => (
           <li key={f.id}><h4>{f.title} +{f.points}</h4><p>{f.note}</p></li>

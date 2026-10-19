@@ -19,6 +19,12 @@ export function ResultView({ result, critic, busy, onShare, onReset }: {
         <canvas className="score" id="scoreArt" />
         <h2 className="verdict">{result.verdict.label} — {result.score}/100</h2>
         <p className="critic">{busy ? 'Consulting the second opinion…' : (critic ?? result.verdict.summary)}</p>
+        {result.aiAnalysis ? (
+          <div className="ai-analysis" aria-label="AI analysis">
+            <b>AI analysis</b>
+            {result.aiAnalysis.split(/\\n\\s*\\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          </div>
+        ) : null}
         <ul className="roasts">{result.findings.slice(0, 5).map((f) => (
           <li key={f.id}><b>+{f.points} · {f.category}</b>{f.roast}</li>
         ))}</ul>

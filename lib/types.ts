@@ -33,4 +33,5 @@ export interface CheckResult {
   screenshotUrl: string | null;
   pageTitle: string | null;
   checkedAt: string;
+  aiAnalysis?: string | null;
 }

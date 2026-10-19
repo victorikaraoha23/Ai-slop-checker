@@ -43,6 +43,33 @@ function mainContent(html: string): string {
     .slice(0, 20_000);
 }
 
+async function generateAiAnalysis(host: string, score: number, findings: ReturnType<typeof analyzeHtml>['findings'], text: ReturnType<typeof analyzeText> | null): Promise<string | null> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
+  try {
+    const evidence = findings.slice(0, 8).map((f) => `${f.title}: ${f.note}`).join('\\n');
+    const copy = text ? `Copy classifier: ${text.verdict}, ${text.score}/100 (${text.confidence} confidence).` : 'No meaningful copy sample.';
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST', signal: controller.signal,
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://ai-slop-checker.vercel.app', 'X-Title': 'slopcheck' },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
+          { role: 'system', content: 'You are an expert web design auditor. Write 3 short plain-text paragraphs: your evidence-based conclusion, the strongest signals, and one practical next step. Treat heuristic scores as clues, not proof. Do not use markdown headings.' },
+          { role: 'user', content: `Site: ${host}\nDesign score: ${score}/100\n${copy}\nEvidence:\n${evidence || 'No suspicious design signals.'}` },
+        ], temperature: 0.2, max_tokens: 280,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const output = data?.choices?.[0]?.message?.content;
+    return typeof output === 'string' && output.trim() ? output.trim().slice(0, 1800) : null;
+  } catch { return null; }
+  finally { clearTimeout(timeout); }
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!rateLimit(`site:${clientIp(req)}`, 20)) {
@@ -65,12 +92,15 @@ export async function POST(req: NextRequest) {
       if (copy.split(/\s+/).length >= 12) textAnalysis = analyzeText(copy);
     }
 
+    const aiAnalysis = await generateAiAnalysis(host, designScore, findings, textAnalysis);
+
     return jsonOk({
       host,
       url,
       site: { builders, verdict: siteVerdict(builders) },
       design: { score: designScore, findings, goodMarks },
       text: textAnalysis,
+      aiAnalysis,
       plan: recommendations(findings),
       checkedAt: new Date().toISOString(),
     });
