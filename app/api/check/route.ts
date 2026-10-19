@@ -33,6 +33,47 @@ function screenshotFor(url: string): string {
   return `https://image.thum.io/get/width/1200/crop/900/noanimate/${encodeURIComponent(url)}`;
 }
 
+async function generateAiAnalysis(host: string, title: string | null, score: number, findings: ReturnType<typeof analyzeHtml>['findings']): Promise<string | null> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000);
+  try {
+    const evidence = findings.slice(0, 10).map((f) => `${f.title}: ${f.note}`).join('\\n');
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://ai-slop-checker.vercel.app',
+        'X-Title': 'slopcheck',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert web design auditor. Give a concise, evidence-based analysis of whether a website appears machine-generated. Mention the strongest signals, one uncertainty, and the most useful next step. Do not claim certainty from heuristics alone. Return 3 short paragraphs with plain text only.',
+          },
+          { role: 'user', content: `Site: ${host}\\nTitle: ${title || 'Unknown'}\\nHeuristic score: ${score}/100\\nEvidence:\\n${evidence || 'No suspicious signals detected.'}` },
+        ],
+        temperature: 0.2,
+        max_tokens: 280,
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = data?.choices?.[0]?.message?.content;
+    return typeof text === 'string' && text.trim() ? text.trim().slice(0, 1800) : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!rateLimit(`check:${clientIp(req)}`, 20)) {
@@ -44,6 +85,7 @@ export async function POST(req: NextRequest) {
     const { html, text, title } = await fetchHtml(url);
     const { findings, goodMarks } = analyzeHtml(html, text);
     const score = scoreFindings(findings);
+    const aiAnalysis = await generateAiAnalysis(host, title, score, findings);
     return jsonOk({
       host,
       findings,
@@ -52,6 +94,7 @@ export async function POST(req: NextRequest) {
       verdict: verdictFor(score),
       screenshotUrl: screenshotFor(url),
       pageTitle: title,
+      aiAnalysis,
       fix: fixSuggestion(findings),
       plan: recommendations(findings),
       checkedAt: new Date().toISOString(),
